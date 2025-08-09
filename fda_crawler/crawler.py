@@ -2,6 +2,7 @@
 import asyncio
 import hashlib
 import logging
+import os
 import re
 import time
 import random
@@ -225,11 +226,27 @@ class FDACrawler:
             options.add_argument('--window-size=1920,1080')
             
             # Create the undetected Chrome driver
+            # Try to find Chrome/Chromium executable
+            import shutil
+            chrome_paths = [
+                '/usr/bin/google-chrome',
+                '/usr/bin/google-chrome-stable', 
+                '/usr/bin/chromium',
+                '/usr/bin/chromium-browser'
+            ]
+            
+            chrome_executable = None
+            for path in chrome_paths:
+                if shutil.which(path.split('/')[-1]) or os.path.exists(path):
+                    chrome_executable = path
+                    logger.info(f"Found Chrome/Chromium at: {chrome_executable}")
+                    break
+            
             driver = uc.Chrome(
                 options=options,
                 version_main=None,  # Let it auto-detect
                 driver_executable_path=None,  # Let it auto-download
-                browser_executable_path=None,  # Use system Chrome
+                browser_executable_path=chrome_executable,  # Use detected browser
                 user_data_dir=None,  # Use temp directory
                 headless=settings.browser_headless,
                 use_subprocess=False,  # More stable in containers
