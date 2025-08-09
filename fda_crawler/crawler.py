@@ -145,19 +145,74 @@ class FDACrawler:
                 logger.info("✅ Browser launched successfully")
                 page = await browser.new_page()
                 
-                # Set a reasonable viewport and user agent
+                # Set a reasonable viewport and realistic user agent
                 await page.set_viewport_size({"width": 1280, "height": 720})
+                
+                # Set realistic headers to avoid bot detection
                 await page.set_extra_http_headers({
-                    'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+                    'Accept-Language': 'en-US,en;q=0.9',
+                    'Accept-Encoding': 'gzip, deflate, br',
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache',
+                    'Sec-Fetch-Site': 'none',
+                    'Sec-Fetch-Mode': 'navigate',
+                    'Sec-Fetch-User': '?1',
+                    'Sec-Fetch-Dest': 'document'
                 })
+                
+                # Add stealth techniques
+                await page.add_init_script("""
+                    // Remove webdriver property
+                    Object.defineProperty(navigator, 'webdriver', {
+                        get: () => undefined,
+                    });
+                    
+                    // Mock plugins
+                    Object.defineProperty(navigator, 'plugins', {
+                        get: () => [1, 2, 3, 4, 5],
+                    });
+                    
+                    // Mock languages
+                    Object.defineProperty(navigator, 'languages', {
+                        get: () => ['en-US', 'en'],
+                    });
+                """)
                 
                 logger.info("📄 Navigating to FDA guidance documents page...")
                 await page.goto(
                     "https://www.fda.gov/regulatory-information/search-fda-guidance-documents",
                     timeout=90000,  # Increased to 90 seconds
-                    wait_until="domcontentloaded"  # Less strict than networkidle
+                    wait_until="networkidle"  # Wait for network to be completely idle
                 )
                 logger.info("✅ Page loaded successfully")
+                
+                # Wait for JavaScript to execute and DOM to be ready
+                logger.info("⏳ Waiting for JavaScript execution...")
+                await page.wait_for_timeout(5000)  # Give JavaScript time to run
+                
+                # Try to wait for specific content indicators
+                try:
+                    # Wait for the guidance document count text to appear
+                    await page.wait_for_function("""
+                        () => document.body.innerText.includes('entries') || 
+                             document.body.innerText.includes('Showing') ||
+                             document.querySelectorAll('table').length > 0
+                    """, timeout=30000)
+                    logger.info("✅ Page content indicators found")
+                except Exception as e:
+                    logger.warning(f"⚠️ Content indicators not found: {e}")
+                
+                # Additional wait for DataTables to initialize
+                try:
+                    await page.wait_for_function("""
+                        () => window.jQuery && window.jQuery.fn.DataTable && 
+                             (window.jQuery('table').DataTable || document.querySelectorAll('table').length > 0)
+                    """, timeout=20000)
+                    logger.info("✅ DataTables initialization detected")
+                except Exception as e:
+                    logger.warning(f"⚠️ DataTables not detected: {e}")
                 
                 # Take a screenshot for debugging
                 try:
@@ -224,10 +279,43 @@ class FDACrawler:
                         div_elements = await page.query_selector_all('div[class*="table"]')
                         logger.error(f"📊 Found {len(div_elements)} div elements with 'table' in class")
                         
+                        # Log page title and URL for debugging
+                        page_title = await page.title()
+                        page_url = page.url
+                        logger.error(f"📄 Page title: {page_title}")
+                        logger.error(f"🔗 Page URL: {page_url}")
+                        
+                        # Check if we got redirected or blocked
+                        if 'blocked' in page_title.lower() or 'access denied' in page_title.lower():
+                            logger.error("🚫 Page appears to be blocked or access denied")
+                        elif len(all_elements) < 20:  # Very few elements suggests minimal page
+                            logger.error("⚠️ Page has very few elements - likely bot detection or network issue")
+                            
+                            # Try refreshing the page once
+                            logger.info("🔄 Attempting page refresh...")
+                            await page.reload(timeout=60000, wait_until="networkidle")
+                            await page.wait_for_timeout(3000)
+                            
+                            # Check again after refresh
+                            refreshed_elements = await page.query_selector_all('*')
+                            logger.info(f"🔄 After refresh: {len(refreshed_elements)} elements")
+                            
+                            if len(refreshed_elements) > len(all_elements):
+                                logger.info("✅ Page refresh improved element count, retrying table search...")
+                                # Quick retry on the basic table selector
+                                try:
+                                    await page.wait_for_selector('table', timeout=10000)
+                                    logger.info("✅ Found table after refresh!")
+                                    table_found = True
+                                    found_selector = 'table'
+                                except:
+                                    logger.warning("❌ Still no table found after refresh")
+                        
                     except Exception as e:
                         logger.error(f"Could not analyze page elements: {e}")
                     
-                    raise Exception("No DataTable found with any selector - see debug info above")
+                    if not table_found:
+                        raise Exception("No DataTable found with any selector - see debug info above")
                 
                 # Wait a bit more for data to populate
                 await page.wait_for_timeout(3000)

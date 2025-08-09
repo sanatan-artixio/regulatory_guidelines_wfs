@@ -300,5 +300,74 @@ def test_browser():
     asyncio.run(_test_browser())
 
 
+@app.command()
+def test_page_content():
+    """Test what content we're actually getting from the FDA page"""
+    async def _test_content():
+        from playwright.async_api import async_playwright
+        from fda_crawler.config import settings
+        
+        console.print("🧪 Testing FDA page content retrieval...")
+        
+        async with async_playwright() as p:
+            browser_args = [
+                '--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage',
+                '--disable-gpu', '--single-process'
+            ]
+            
+            browser = await p.chromium.launch(headless=settings.browser_headless, args=browser_args)
+            page = await browser.new_page()
+            
+            # Set realistic headers
+            await page.set_extra_http_headers({
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            })
+            
+            try:
+                console.print("📄 Loading FDA page...")
+                await page.goto("https://www.fda.gov/regulatory-information/search-fda-guidance-documents", 
+                               timeout=60000, wait_until="networkidle")
+                
+                # Get basic page info
+                title = await page.title()
+                url = page.url
+                content = await page.content()
+                
+                console.print(f"📄 Page Title: {title}")
+                console.print(f"🔗 Page URL: {url}")
+                console.print(f"📝 Content Length: {len(content)} characters")
+                
+                # Check for key content
+                if 'guidance' in content.lower():
+                    console.print("✅ 'guidance' text found in content")
+                else:
+                    console.print("❌ 'guidance' text NOT found")
+                    
+                if 'entries' in content.lower():
+                    console.print("✅ 'entries' text found in content")
+                else:
+                    console.print("❌ 'entries' text NOT found")
+                
+                # Count elements
+                all_elements = await page.query_selector_all('*')
+                tables = await page.query_selector_all('table')
+                scripts = await page.query_selector_all('script')
+                
+                console.print(f"🔍 Total elements: {len(all_elements)}")
+                console.print(f"📊 Tables: {len(tables)}")
+                console.print(f"📜 Scripts: {len(scripts)}")
+                
+                # Show first 500 chars of content for debugging
+                console.print(f"\n📋 First 500 characters of content:")
+                console.print(content[:500])
+                
+            except Exception as e:
+                console.print(f"❌ Error: {e}", style="red")
+            finally:
+                await browser.close()
+    
+    asyncio.run(_test_content())
+
+
 if __name__ == "__main__":
     app()
