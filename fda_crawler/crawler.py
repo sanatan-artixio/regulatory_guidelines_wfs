@@ -463,28 +463,24 @@ class FDACrawler:
         return None
 
         
-    async def download_pdf(self, pdf_url: str, local_path: Path) -> Optional[Dict[str, Any]]:
-        """Download PDF file and return metadata"""
+    async def download_pdf(self, pdf_url: str) -> Optional[Dict[str, Any]]:
+        """Download PDF file and return binary data with metadata"""
         try:
             await asyncio.sleep(1.0 / settings.rate_limit)  # Rate limiting
             
             response = await self.client.get(pdf_url)
             response.raise_for_status()
             
-            # Ensure directory exists
-            local_path.parent.mkdir(parents=True, exist_ok=True)
+            # Get binary content
+            pdf_content = response.content
             
-            # Write file
-            with open(local_path, 'wb') as f:
-                f.write(response.content)
-                
             # Calculate checksum
-            checksum = hashlib.sha256(response.content).hexdigest()
+            checksum = hashlib.sha256(pdf_content).hexdigest()
             
             return {
-                'local_path': str(local_path),
+                'pdf_content': pdf_content,
                 'checksum': checksum,
-                'size_bytes': len(response.content)
+                'size_bytes': len(pdf_content)
             }
             
         except Exception as e:
@@ -556,9 +552,8 @@ class FDACrawler:
                 pdf_url = doc_data.get('pdf_url') or detail_metadata.get('pdf_download_url')
                 
                 if pdf_url:
-                    # Generate filename
+                    # Generate filename for reference
                     filename = self._generate_pdf_filename_from_data(doc_data, pdf_url)
-                    local_path = settings.pdf_root / filename
                     
                     # Check if attachment already exists
                     result = await session.execute(
@@ -570,10 +565,10 @@ class FDACrawler:
                     existing_attachment = result.scalar_one_or_none()
                     
                     if existing_attachment and existing_attachment.download_status == "completed":
-                        logger.info(f"PDF already downloaded: {filename}")
+                        logger.info(f"PDF already downloaded and stored in database: {filename}")
                     else:
-                        # Download PDF
-                        download_result = await self.download_pdf(pdf_url, local_path)
+                        # Download PDF binary data
+                        download_result = await self.download_pdf(pdf_url)
                         
                         if download_result:
                             if existing_attachment:
@@ -587,18 +582,18 @@ class FDACrawler:
                                 )
                                 session.add(attachment)
                                 
-                            attachment.local_path = download_result['local_path']
+                            # Store PDF binary data in database
+                            attachment.pdf_content = download_result['pdf_content']
                             attachment.checksum = download_result['checksum']
                             attachment.size_bytes = download_result['size_bytes']
                             attachment.download_status = "completed"
                             attachment.downloaded_at = datetime.utcnow()
                             
-                            # Update document with PDF info
-                            doc.pdf_path = download_result['local_path']
+                            # Update document with PDF info (keep for backward compatibility)
                             doc.pdf_checksum = download_result['checksum']
                             doc.pdf_size_bytes = download_result['size_bytes']
                             
-                            logger.info(f"Downloaded PDF: {filename}")
+                            logger.info(f"Downloaded and stored PDF in database: {filename} ({download_result['size_bytes']} bytes)")
                         else:
                             pdf_success = False
                             logger.warning(f"Failed to download PDF from {pdf_url}")

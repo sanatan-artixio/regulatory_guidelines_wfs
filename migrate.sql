@@ -74,7 +74,8 @@ CREATE TABLE IF NOT EXISTS document_attachments (
     file_type VARCHAR(20),
     
     -- Download info
-    local_path VARCHAR(500),
+    local_path VARCHAR(500),  -- Keep for backward compatibility, can be null
+    pdf_content BYTEA,        -- Store PDF binary data directly in PostgreSQL
     checksum VARCHAR(64),
     size_bytes INTEGER,
     

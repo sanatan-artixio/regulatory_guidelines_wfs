@@ -13,7 +13,7 @@ This project crawls the FDA's guidance documents database (2,786+ documents), ex
 ✅ **Complete Data Extraction**
 - Document metadata (title, issue date, FDA organization, topic, status)
 - Detail page information (docket numbers, summaries, federal register links)
-- Direct PDF downloads with integrity verification
+- Direct PDF downloads stored in PostgreSQL with integrity verification
 
 ✅ **Robust Architecture**
 - Async processing with configurable concurrency
@@ -48,7 +48,7 @@ Update database connection in `fda_crawler/config.py` or set environment variabl
 
 ```bash
 export DATABASE_URL="postgresql+asyncpg://user:pass@localhost:5432/db"
-export PDF_ROOT="./data/pdfs"
+# Note: PDFs are stored directly in PostgreSQL, no file system storage needed
 ```
 
 ### 4. Test Run
@@ -82,6 +82,9 @@ python -m fda_crawler.cli resume <session-id>
 # Check crawl status
 python -m fda_crawler.cli status <session-id>
 
+# Export PDFs from database to files
+python -m fda_crawler.cli export-pdfs --output-dir ./exported_pdfs
+
 # View configuration
 python -m fda_crawler.cli config
 ```
@@ -102,14 +105,14 @@ fda_crawler/
 
 - **crawl_sessions**: Track crawl progress and resume capability
 - **documents**: FDA guidance document metadata
-- **document_attachments**: PDF files and download tracking
+- **document_attachments**: PDF binary data stored directly in PostgreSQL with download tracking
 
 ### Data Flow
 
 1. **Discovery**: Extract document URLs and metadata from FDA listing
 2. **Detail Parsing**: Fetch additional metadata from individual document pages
-3. **PDF Download**: Download PDFs with integrity verification
-4. **Storage**: Save all data to PostgreSQL with proper relationships
+3. **PDF Download**: Download PDF binary data with integrity verification
+4. **Database Storage**: Save all data including PDF content directly to PostgreSQL
 
 ## Example Output
 
@@ -117,7 +120,7 @@ fda_crawler/
 🧪 Testing crawler with 5 documents...
 📋 Database initialized
 INFO: Processing document: Medical Device User Fee Small Business Qualification...
-INFO: Downloaded PDF: 07/31/2025_medical_device_user_fee_small_business_qualificati_176439.pdf
+INFO: Downloaded and stored PDF in database: 07/31/2025_medical_device_user_fee_small_business_qualificati_176439.pdf (428737 bytes)
 ✅ Test crawl completed!
 
 Session Status:
@@ -135,8 +138,17 @@ Key settings in `config.py`:
 
 - `MAX_CONCURRENCY`: Concurrent requests (default: 4)
 - `RATE_LIMIT`: Requests per second (default: 1.0)
-- `PDF_ROOT`: Local PDF storage directory
 - `DATABASE_URL`: PostgreSQL connection string
+- `PDF_ROOT`: Export directory for PDF files (optional)
+
+## Database Storage Benefits
+
+✅ **No File System Dependencies**: All PDFs stored directly in PostgreSQL
+✅ **Simplified Deployment**: Single database contains everything
+✅ **ACID Compliance**: Transactional consistency for PDF downloads
+✅ **Easy Backup/Restore**: Standard PostgreSQL backup tools
+✅ **Scalable**: Handle thousands of small PDFs efficiently
+✅ **Export on Demand**: Extract PDFs to files only when needed
 
 ## Technical Details
 
@@ -155,12 +167,14 @@ Key settings in `config.py`:
 
 ### File Naming
 
-PDFs are stored with deterministic names:
+PDFs are stored in database with deterministic filenames for reference:
 ```
 {issue_date}_{title_slug}_{media_id}.pdf
 ```
 
 Example: `07/31/2025_medical_device_user_fee_small_business_qualificati_176439.pdf`
+
+Use `export-pdfs` command to extract files with these names when needed.
 
 ## Development
 

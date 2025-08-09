@@ -5,9 +5,11 @@ import typer
 from rich.console import Console
 from rich.table import Table
 from rich.progress import Progress, SpinnerColumn, TextColumn
+from sqlalchemy import select
 
 from .crawler import FDACrawler
 from .config import settings
+from .models import Document
 
 app = typer.Typer(help="FDA Guidance Documents Harvester - Lean Implementation")
 console = Console()
@@ -221,6 +223,55 @@ def config():
         table.add_row("Test Limit", str(settings.test_limit))
     
     console.print(table)
+
+
+@app.command()
+def export_pdfs(
+    output_dir: str = typer.Option("./exported_pdfs", "--output-dir", help="Directory to export PDFs to"),
+    session_id: Optional[str] = typer.Option(None, "--session-id", help="Export PDFs from specific session only")
+):
+    """Export PDFs from database to files"""
+    async def _export():
+        from pathlib import Path
+        from .models import DocumentAttachment, CrawlSession
+        
+        output_path = Path(output_dir)
+        output_path.mkdir(parents=True, exist_ok=True)
+        
+        async with FDACrawler() as crawler:
+            async with crawler.async_session() as session:
+                # Build query
+                query = select(DocumentAttachment).where(
+                    DocumentAttachment.download_status == "completed",
+                    DocumentAttachment.pdf_content.isnot(None)
+                )
+                
+                if session_id:
+                    query = query.join(Document).where(Document.crawl_session_id == session_id)
+                
+                result = await session.execute(query)
+                attachments = result.scalars().all()
+                
+                console.print(f"📁 Exporting {len(attachments)} PDFs to {output_path}")
+                
+                exported = 0
+                for attachment in attachments:
+                    try:
+                        file_path = output_path / attachment.filename
+                        file_path.parent.mkdir(parents=True, exist_ok=True)
+                        
+                        with open(file_path, 'wb') as f:
+                            f.write(attachment.pdf_content)
+                        
+                        exported += 1
+                        console.print(f"✅ Exported: {attachment.filename}")
+                        
+                    except Exception as e:
+                        console.print(f"❌ Failed to export {attachment.filename}: {e}", style="red")
+                
+                console.print(f"🎉 Successfully exported {exported}/{len(attachments)} PDFs")
+    
+    asyncio.run(_export())
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@
 import uuid
 from datetime import datetime
 from typing import Optional, List
-from sqlalchemy import Column, String, DateTime, Integer, Text, Boolean, ForeignKey, Float
+from sqlalchemy import Column, String, DateTime, Integer, Text, Boolean, ForeignKey, Float, LargeBinary
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
@@ -100,7 +100,8 @@ class DocumentAttachment(Base):
     file_type = Column(String(20), nullable=True)  # pdf, doc, etc.
     
     # Download info
-    local_path = Column(String(500), nullable=True)
+    local_path = Column(String(500), nullable=True)  # Keep for backward compatibility
+    pdf_content = Column(LargeBinary, nullable=True)  # Store PDF binary data directly
     checksum = Column(String(64), nullable=True)  # SHA256
     size_bytes = Column(Integer, nullable=True)
     

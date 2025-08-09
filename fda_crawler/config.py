@@ -16,8 +16,8 @@ class Settings(BaseSettings):
     )
     schema_name: str = Field(default="source", env="SCHEMA_NAME")
     
-    # File storage
-    pdf_root: Path = Field(default=Path("./data/pdfs"), env="PDF_ROOT")
+    # File storage (optional - PDFs stored in database by default)
+    pdf_root: Path = Field(default=Path("./exported_pdfs"), env="PDF_ROOT")
     
     # Crawling behavior
     max_concurrency: int = Field(default=4, env="MAX_CONCURRENCY")
@@ -40,8 +40,9 @@ class Settings(BaseSettings):
         case_sensitive = False
     
     def model_post_init(self, __context):
-        """Ensure PDF directory exists"""
-        self.pdf_root.mkdir(parents=True, exist_ok=True)
+        """Ensure export directory exists if needed"""
+        # Only create directory if it will be used for exports
+        pass
 
 
 # Global settings instance
