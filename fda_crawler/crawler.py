@@ -26,6 +26,65 @@ logger = logging.getLogger(__name__)
 class FDACrawler:
     """Main FDA guidance documents crawler with resume capability"""
     
+    # Known FDA documents for fallback (single source of truth)
+    FALLBACK_DOCUMENTS = [
+        {
+            'title': 'Medical Device User Fee Small Business Qualification and Determination: Guidance for Industry, Food and Drug Administration Staff and Foreign Governments',
+            'document_url': 'https://www.fda.gov/regulatory-information/search-fda-guidance-documents/medical-device-user-fee-small-business-qualification-and-determination',
+            'pdf_url': 'https://www.fda.gov/media/176439/download',
+            'pdf_size': '418.69 KB',
+            'issue_date': '07/31/2025',
+            'fda_organization': 'Center for Devices and Radiological Health Center for Biologics Evaluation and Research',
+            'topic': 'User Fees, Administrative / Procedural',
+            'guidance_status': 'Final',
+            'open_for_comment': False,
+        },
+        {
+            'title': 'CVM GFI #294 - Animal Food Ingredient Consultation (AFIC)',
+            'document_url': 'https://www.fda.gov/regulatory-information/search-fda-guidance-documents/cvm-gfi-294-animal-food-ingredient-consultation-afic',
+            'pdf_url': 'https://www.fda.gov/media/180442/download',
+            'pdf_size': '397.81 KB',
+            'issue_date': '07/31/2025',
+            'fda_organization': 'Center for Veterinary Medicine',
+            'topic': 'Premarket, Animal Food Additives, Labeling, Safety - Issues, Errors, and Problems',
+            'guidance_status': 'Final',
+            'open_for_comment': False,
+        },
+        {
+            'title': 'E21 Inclusion of Pregnant and Breastfeeding Women in Clinical Trials: Draft Guidance for Industry',
+            'document_url': 'https://www.fda.gov/regulatory-information/search-fda-guidance-documents/e21-inclusion-pregnant-and-breastfeeding-women-clinical-trials',
+            'pdf_url': 'https://www.fda.gov/media/187755/download',
+            'pdf_size': '429.62 KB',
+            'issue_date': '07/21/2025',
+            'fda_organization': 'Center for Biologics Evaluation and Research Center for Drug Evaluation and Research Office of the Commissioner,Office of Women\'s Health',
+            'topic': 'ICH-Efficacy',
+            'guidance_status': 'Draft',
+            'open_for_comment': True,
+        },
+        {
+            'title': 'Formal Meetings Between the FDA and Sponsors or Applicants of BsUFA Products Guidance for Industry',
+            'document_url': 'https://www.fda.gov/regulatory-information/search-fda-guidance-documents/formal-meetings-between-fda-and-sponsors-or-applicants-bsufa-products-guidance-industry',
+            'pdf_url': 'https://www.fda.gov/media/113913/download',
+            'pdf_size': '358.01 KB',
+            'issue_date': '07/18/2025',
+            'fda_organization': 'Center for Drug Evaluation and Research',
+            'topic': 'Administrative / Procedural, Biosimilars',
+            'guidance_status': 'Final',
+            'open_for_comment': False,
+        },
+        {
+            'title': 'Development of Cancer Drugs for Use in Novel Combination - Determining the Contribution of the Individual Drugs\' Effects: Draft Guidance for Industry',
+            'document_url': 'https://www.fda.gov/regulatory-information/search-fda-guidance-documents/development-cancer-drugs-use-novel-combination-determining-contribution-individual-drugs-effects',
+            'pdf_url': 'https://www.fda.gov/media/187589/download',
+            'pdf_size': '326.46 KB',
+            'issue_date': '07/17/2025',
+            'fda_organization': 'Oncology Center of Excellence',
+            'topic': 'Clinical - Medical',
+            'guidance_status': 'Draft',
+            'open_for_comment': True,
+        },
+    ]
+    
     def __init__(self):
         self.engine = create_async_engine(settings.database_url)
         self.async_session = sessionmaker(
@@ -452,65 +511,7 @@ class FDACrawler:
         """Fallback method with hardcoded documents for testing"""
         logger.warning("Using fallback hardcoded documents")
         
-        known_documents = [
-            {
-                'title': 'Medical Device User Fee Small Business Qualification and Determination: Guidance for Industry, Food and Drug Administration Staff and Foreign Governments',
-                'document_url': 'https://www.fda.gov/regulatory-information/search-fda-guidance-documents/medical-device-user-fee-small-business-qualification-and-determination',
-                'pdf_url': 'https://www.fda.gov/media/176439/download',
-                'pdf_size': '418.69 KB',
-                'issue_date': '07/31/2025',
-                'fda_organization': 'Center for Devices and Radiological Health Center for Biologics Evaluation and Research',
-                'topic': 'User Fees, Administrative / Procedural',
-                'guidance_status': 'Final',
-                'open_for_comment': False,
-            },
-            {
-                'title': 'CVM GFI #294 - Animal Food Ingredient Consultation (AFIC)',
-                'document_url': 'https://www.fda.gov/regulatory-information/search-fda-guidance-documents/cvm-gfi-294-animal-food-ingredient-consultation-afic',
-                'pdf_url': 'https://www.fda.gov/media/180442/download',
-                'pdf_size': '397.81 KB',
-                'issue_date': '07/31/2025',
-                'fda_organization': 'Center for Veterinary Medicine',
-                'topic': 'Premarket, Animal Food Additives, Labeling, Safety - Issues, Errors, and Problems',
-                'guidance_status': 'Final',
-                'open_for_comment': False,
-            },
-            {
-                'title': 'E21 Inclusion of Pregnant and Breastfeeding Women in Clinical Trials: Draft Guidance for Industry',
-                'document_url': 'https://www.fda.gov/regulatory-information/search-fda-guidance-documents/e21-inclusion-pregnant-and-breastfeeding-women-clinical-trials',
-                'pdf_url': 'https://www.fda.gov/media/187755/download',
-                'pdf_size': '429.62 KB',
-                'issue_date': '07/21/2025',
-                'fda_organization': 'Center for Biologics Evaluation and Research Center for Drug Evaluation and Research Office of the Commissioner,Office of Women\'s Health',
-                'topic': 'ICH-Efficacy',
-                'guidance_status': 'Draft',
-                'open_for_comment': True,
-            },
-            {
-                'title': 'Formal Meetings Between the FDA and Sponsors or Applicants of BsUFA Products Guidance for Industry',
-                'document_url': 'https://www.fda.gov/regulatory-information/search-fda-guidance-documents/formal-meetings-between-fda-and-sponsors-or-applicants-bsufa-products-guidance-industry',
-                'pdf_url': 'https://www.fda.gov/media/113913/download',
-                'pdf_size': '358.01 KB',
-                'issue_date': '07/18/2025',
-                'fda_organization': 'Center for Drug Evaluation and Research',
-                'topic': 'Administrative / Procedural, Biosimilars',
-                'guidance_status': 'Final',
-                'open_for_comment': False,
-            },
-            {
-                'title': 'Development of Cancer Drugs for Use in Novel Combination - Determining the Contribution of the Individual Drugs\' Effects: Draft Guidance for Industry',
-                'document_url': 'https://www.fda.gov/regulatory-information/search-fda-guidance-documents/development-cancer-drugs-use-novel-combination-determining-contribution-individual-drugs-effects',
-                'pdf_url': 'https://www.fda.gov/media/187589/download',
-                'pdf_size': '326.46 KB',
-                'issue_date': '07/17/2025',
-                'fda_organization': 'Oncology Center of Excellence',
-                'topic': 'Clinical - Medical',
-                'guidance_status': 'Draft',
-                'open_for_comment': True,
-            },
-        ]
-        
-        documents = known_documents[:limit] if limit else known_documents
+        documents = self.FALLBACK_DOCUMENTS[:limit] if limit else self.FALLBACK_DOCUMENTS
         return documents
 
     async def get_listing_data(self, limit: Optional[int] = None) -> List[Dict[str, Any]]:
@@ -569,67 +570,8 @@ class FDACrawler:
                 # Since the table is loaded via JavaScript, let's use known real documents for testing
                 logger.info("Using known real FDA guidance documents for testing")
                 
-                # These are real documents from the FDA website (first 10 from the table we observed)
-                known_documents = [
-                    {
-                        'title': 'Medical Device User Fee Small Business Qualification and Determination: Guidance for Industry, Food and Drug Administration Staff and Foreign Governments',
-                        'document_url': 'https://www.fda.gov/regulatory-information/search-fda-guidance-documents/medical-device-user-fee-small-business-qualification-and-determination',
-                        'pdf_url': 'https://www.fda.gov/media/176439/download',
-                        'pdf_size': '418.69 KB',
-                        'issue_date': '07/31/2025',
-                        'fda_organization': 'Center for Devices and Radiological Health Center for Biologics Evaluation and Research',
-                        'topic': 'User Fees, Administrative / Procedural',
-                        'guidance_status': 'Final',
-                        'open_for_comment': False,
-                    },
-                    {
-                        'title': 'CVM GFI #294 - Animal Food Ingredient Consultation (AFIC)',
-                        'document_url': 'https://www.fda.gov/regulatory-information/search-fda-guidance-documents/cvm-gfi-294-animal-food-ingredient-consultation-afic',
-                        'pdf_url': 'https://www.fda.gov/media/180442/download',
-                        'pdf_size': '397.81 KB',
-                        'issue_date': '07/31/2025',
-                        'fda_organization': 'Center for Veterinary Medicine',
-                        'topic': 'Premarket, Animal Food Additives, Labeling, Safety - Issues, Errors, and Problems',
-                        'guidance_status': 'Final',
-                        'open_for_comment': False,
-                    },
-                    {
-                        'title': 'E21 Inclusion of Pregnant and Breastfeeding Women in Clinical Trials: Draft Guidance for Industry',
-                        'document_url': 'https://www.fda.gov/regulatory-information/search-fda-guidance-documents/e21-inclusion-pregnant-and-breastfeeding-women-clinical-trials',
-                        'pdf_url': 'https://www.fda.gov/media/187755/download',
-                        'pdf_size': '429.62 KB',
-                        'issue_date': '07/21/2025',
-                        'fda_organization': 'Center for Biologics Evaluation and Research Center for Drug Evaluation and Research Office of the Commissioner,Office of Women\'s Health',
-                        'topic': 'ICH-Efficacy',
-                        'guidance_status': 'Draft',
-                        'open_for_comment': True,
-                    },
-                    {
-                        'title': 'Formal Meetings Between the FDA and Sponsors or Applicants of BsUFA Products Guidance for Industry',
-                        'document_url': 'https://www.fda.gov/regulatory-information/search-fda-guidance-documents/formal-meetings-between-fda-and-sponsors-or-applicants-bsufa-products-guidance-industry',
-                        'pdf_url': 'https://www.fda.gov/media/113913/download',
-                        'pdf_size': '358.01 KB',
-                        'issue_date': '07/18/2025',
-                        'fda_organization': 'Center for Drug Evaluation and Research',
-                        'topic': 'Administrative / Procedural, Biosimilars',
-                        'guidance_status': 'Final',
-                        'open_for_comment': False,
-                    },
-                    {
-                        'title': 'Development of Cancer Drugs for Use in Novel Combination - Determining the Contribution of the Individual Drugs\' Effects: Draft Guidance for Industry',
-                        'document_url': 'https://www.fda.gov/regulatory-information/search-fda-guidance-documents/development-cancer-drugs-use-novel-combination-determining-contribution-individual-drugs-effects',
-                        'pdf_url': 'https://www.fda.gov/media/187589/download',
-                        'pdf_size': '326.46 KB',
-                        'issue_date': '07/17/2025',
-                        'fda_organization': 'Oncology Center of Excellence',
-                        'topic': 'Clinical - Medical',
-                        'guidance_status': 'Draft',
-                        'open_for_comment': True,
-                    },
-                ]
-                
-                # Return the requested number of documents
-                documents = known_documents[:limit] if limit else known_documents
+                # Return the requested number of documents from our fallback list
+                documents = self.FALLBACK_DOCUMENTS[:limit] if limit else self.FALLBACK_DOCUMENTS
                 return documents
             
             logger.info(f"Found {len(data_rows)} data rows in listing")
