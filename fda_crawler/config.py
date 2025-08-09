@@ -35,6 +35,11 @@ class Settings(BaseSettings):
     # Testing
     test_limit: Optional[int] = Field(default=None, env="TEST_LIMIT")  # Limit docs for testing
     
+    # Browser automation
+    browser_headless: bool = Field(default=True, env="BROWSER_HEADLESS")  # Run browser in headless mode
+    browser_timeout: int = Field(default=30000, env="BROWSER_TIMEOUT")  # Browser timeout in milliseconds
+    browser_wait_for_table: int = Field(default=10000, env="BROWSER_WAIT_FOR_TABLE")  # Wait for table to load (ms)
+    
     class Config:
         env_file = ".env"
         case_sensitive = False

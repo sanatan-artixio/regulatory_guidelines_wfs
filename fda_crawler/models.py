@@ -55,12 +55,12 @@ class Document(Base):
     document_url = Column(String(500), nullable=False, unique=True)
     title = Column(Text, nullable=True)
     summary = Column(Text, nullable=True)
-    issue_date = Column(String(50), nullable=True)
-    fda_organization = Column(String(200), nullable=True)
-    topic = Column(String(200), nullable=True)
-    guidance_status = Column(String(100), nullable=True)
+    issue_date = Column(Text, nullable=True)              # Increased from String(50) to Text
+    fda_organization = Column(Text, nullable=True)        # Increased from String(200) to Text
+    topic = Column(Text, nullable=True)                   # Increased from String(200) to Text
+    guidance_status = Column(Text, nullable=True)         # Increased from String(100) to Text
     open_for_comment = Column(Boolean, nullable=True)
-    comment_closing_date = Column(String(50), nullable=True)
+    comment_closing_date = Column(Text, nullable=True)    # Increased from String(50) to Text
     docket_number = Column(String(100), nullable=True)
     guidance_type = Column(String(100), nullable=True)
     

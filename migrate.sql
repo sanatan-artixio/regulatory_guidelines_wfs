@@ -45,12 +45,12 @@ CREATE TABLE IF NOT EXISTS documents (
     document_url VARCHAR(500) NOT NULL UNIQUE,
     title TEXT,
     summary TEXT,
-    issue_date VARCHAR(50),
-    fda_organization VARCHAR(200),
-    topic VARCHAR(200),
-    guidance_status VARCHAR(100),
+    issue_date TEXT,                    -- Increased from VARCHAR(50) to TEXT
+    fda_organization TEXT,              -- Increased from VARCHAR(200) to TEXT
+    topic TEXT,                         -- Increased from VARCHAR(200) to TEXT
+    guidance_status TEXT,               -- Increased from VARCHAR(100) to TEXT
     open_for_comment BOOLEAN,
-    comment_closing_date VARCHAR(50),
+    comment_closing_date TEXT,          -- Increased from VARCHAR(50) to TEXT
     docket_number VARCHAR(100),
     guidance_type VARCHAR(100),
     
