@@ -222,8 +222,22 @@ class FDACrawler:
             if settings.browser_headless:
                 options.add_argument('--headless=new')
             
-            # Set window size
-            options.add_argument('--window-size=1920,1080')
+            # Set realistic window size with slight randomization
+            width = random.randint(1366, 1920)
+            height = random.randint(768, 1080) 
+            options.add_argument(f'--window-size={width},{height}')
+            
+            # Additional advanced stealth options
+            options.add_argument('--disable-blink-features=AutomationControlled')
+            options.add_argument('--disable-features=VizDisplayCompositor,VizHitTestSurfaceLayer')
+            options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
+            
+            # Memory and performance tweaks for stealth
+            options.add_argument('--max_old_space_size=2048')
+            options.add_argument('--disable-dev-shm-usage')
+            options.add_argument('--no-first-run')
+            options.add_argument('--disable-default-apps')
+            options.add_argument('--disable-features=TranslateUI')
             
             # Create the undetected Chrome driver
             # Try to find Chrome/Chromium executable
@@ -255,6 +269,100 @@ class FDACrawler:
             
             logger.info("✅ Undetected Chrome browser launched successfully")
             
+            # Advanced fingerprint masking
+            logger.info("🎭 Applying advanced fingerprint masking...")
+            
+            # Execute comprehensive stealth scripts
+            stealth_script = """
+                // Override webdriver property
+                Object.defineProperty(navigator, 'webdriver', {
+                    get: () => undefined,
+                });
+                
+                // Override automation flags
+                window.chrome = {
+                    runtime: {},
+                };
+                
+                // Override permissions API
+                Object.defineProperty(navigator, 'permissions', {
+                    get: () => ({
+                        query: () => Promise.resolve({ state: 'granted' }),
+                    }),
+                });
+                
+                // Override plugins
+                Object.defineProperty(navigator, 'plugins', {
+                    get: () => [
+                        {
+                            0: {type: "application/x-google-chrome-pdf", suffixes: "pdf", description: "Portable Document Format"},
+                            description: "Portable Document Format",
+                            filename: "internal-pdf-viewer",
+                            length: 1,
+                            name: "Chrome PDF Plugin"
+                        },
+                        {
+                            0: {type: "application/pdf", suffixes: "pdf", description: ""},
+                            description: "",
+                            filename: "mhjfbmdgcfjbbpaeojofohoefgiehjai",
+                            length: 1,
+                            name: "Chrome PDF Viewer"
+                        }
+                    ],
+                });
+                
+                // Override languages
+                Object.defineProperty(navigator, 'languages', {
+                    get: () => ['en-US', 'en'],
+                });
+                
+                // Override platform
+                Object.defineProperty(navigator, 'platform', {
+                    get: () => 'Win32',
+                });
+                
+                // Override vendor
+                Object.defineProperty(navigator, 'vendor', {
+                    get: () => 'Google Inc.',
+                });
+                
+                // Override connection
+                Object.defineProperty(navigator, 'connection', {
+                    get: () => ({
+                        effectiveType: '4g',
+                        rtt: 50,
+                        downlink: 10,
+                    }),
+                });
+                
+                // Mock screen properties
+                Object.defineProperty(screen, 'colorDepth', {
+                    get: () => 24,
+                });
+                
+                // Mock timezone
+                Date.prototype.getTimezoneOffset = () => 300; // EST
+                
+                // Remove automation indicators
+                delete window.cdc_adoQpoasnfa76pfcZLmcfl_Array;
+                delete window.cdc_adoQpoasnfa76pfcZLmcfl_Promise;
+                delete window.cdc_adoQpoasnfa76pfcZLmcfl_Symbol;
+            """
+            
+            driver.execute_cdp_cmd('Page.addScriptToEvaluateOnNewDocument', {
+                'source': stealth_script
+            })
+            
+            # Set realistic viewport
+            viewport_width = random.randint(1366, 1920)
+            viewport_height = random.randint(768, 1080)
+            driver.execute_cdp_cmd('Emulation.setDeviceMetricsOverride', {
+                'width': viewport_width,
+                'height': viewport_height,
+                'deviceScaleFactor': 1,
+                'mobile': False,
+            })
+            
             # Set implicit wait
             driver.implicitly_wait(10)
             
@@ -272,12 +380,82 @@ class FDACrawler:
             
             logger.info("✅ Page loaded successfully")
             
+            # Advanced stealth: Simulate human behavior before checking URL
+            logger.info("🤖 Simulating human behavior...")
+            
+            # Simulate mouse movement and scrolling
+            driver.execute_script("""
+                // Simulate mouse movement
+                document.dispatchEvent(new MouseEvent('mousemove', {
+                    'view': window,
+                    'bubbles': true,
+                    'cancelable': true,
+                    'clientX': Math.random() * window.innerWidth,
+                    'clientY': Math.random() * window.innerHeight
+                }));
+                
+                // Simulate scrolling
+                window.scrollTo(0, Math.random() * 500);
+                
+                // Simulate focus events
+                window.dispatchEvent(new Event('focus'));
+                document.dispatchEvent(new Event('visibilitychange'));
+            """)
+            
+            # Human-like pause
+            time.sleep(random.uniform(2, 4))
+            
             # Check if we got redirected to the apology page (bot detection)
             current_url = driver.current_url
             if "apology_objects/abuse-detection-apology.html" in current_url:
                 logger.error("❌ Bot detection triggered - redirected to apology page")
                 logger.error(f"Current URL: {current_url}")
-                raise Exception("Bot detection triggered")
+                
+                # Try one more advanced technique: clear browser data and retry
+                logger.info("🔄 Attempting advanced evasion technique...")
+                
+                # Clear all browser data
+                driver.execute_script("window.localStorage.clear();")
+                driver.execute_script("window.sessionStorage.clear();")
+                driver.delete_all_cookies()
+                
+                # Wait and try to navigate back
+                time.sleep(random.uniform(5, 10))
+                
+                # Try alternative entry points
+                alternative_urls = [
+                    "https://www.fda.gov/regulatory-information/search-fda-guidance-documents",
+                    "https://www.fda.gov/regulatory-information/",
+                    "https://www.fda.gov/"
+                ]
+                
+                for alt_url in alternative_urls:
+                    try:
+                        logger.info(f"🔄 Trying alternative URL: {alt_url}")
+                        driver.get(alt_url)
+                        time.sleep(random.uniform(3, 6))
+                        
+                        current_url = driver.current_url
+                        if "apology_objects/abuse-detection-apology.html" not in current_url:
+                            logger.info(f"✅ Successfully accessed: {current_url}")
+                            
+                            # If we're not on the guidance page, navigate there
+                            if "search-fda-guidance-documents" not in current_url:
+                                logger.info("🔄 Navigating to guidance documents page...")
+                                driver.get("https://www.fda.gov/regulatory-information/search-fda-guidance-documents")
+                                time.sleep(random.uniform(3, 6))
+                                
+                                current_url = driver.current_url
+                                if "apology_objects/abuse-detection-apology.html" in current_url:
+                                    continue  # Try next URL
+                            
+                            break  # Success!
+                    except Exception as e:
+                        logger.warning(f"⚠️ Alternative URL failed: {e}")
+                        continue
+                else:
+                    # All alternatives failed
+                    raise Exception("Bot detection triggered - all evasion attempts failed")
             
             logger.info(f"✅ Current URL: {current_url}")
             
