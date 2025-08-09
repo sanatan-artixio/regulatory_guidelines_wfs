@@ -176,6 +176,108 @@ Example: `07/31/2025_medical_device_user_fee_small_business_qualificati_176439.p
 
 Use `export-pdfs` command to extract files with these names when needed.
 
+## Docker Deployment
+
+### Quick Start with Docker
+
+1. **Build the Docker image:**
+```bash
+docker build -t fda-crawler .
+```
+
+2. **Run with your database:**
+```bash
+docker run -e DATABASE_URL="postgresql+asyncpg://user:password@host:5432/database" fda-crawler
+```
+
+### Docker Compose (Recommended)
+
+1. **Update environment variables in `docker-compose.yml`:**
+```yaml
+environment:
+  DATABASE_URL: postgresql+asyncpg://your_user:your_password@your_host:5432/your_database
+```
+
+2. **Run the crawler:**
+```bash
+# Full crawl
+docker-compose up
+
+# Test with limited documents
+docker-compose run fda-crawler test --limit 10
+
+# Resume interrupted session
+docker-compose run fda-crawler resume <session-id>
+
+# Export PDFs to local directory
+docker-compose run fda-crawler export-pdfs --output-dir /app/exported_pdfs
+```
+
+### Environment Variables
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `DATABASE_URL` | ✅ | - | PostgreSQL connection string |
+| `SCHEMA_NAME` | ❌ | `source` | Database schema name |
+| `MAX_CONCURRENCY` | ❌ | `4` | Concurrent HTTP requests |
+| `RATE_LIMIT` | ❌ | `1.0` | Requests per second |
+| `BROWSER_HEADLESS` | ❌ | `true` | Run browser in headless mode |
+| `BROWSER_TIMEOUT` | ❌ | `30000` | Browser timeout (milliseconds) |
+| `CONNECT_TIMEOUT` | ❌ | `30` | HTTP connect timeout (seconds) |
+| `READ_TIMEOUT` | ❌ | `60` | HTTP read timeout (seconds) |
+
+### Docker Commands
+
+```bash
+# Full crawl (default)
+docker run -e DATABASE_URL="..." fda-crawler
+
+# Test crawl with 10 documents
+docker run -e DATABASE_URL="..." fda-crawler test --limit 10
+
+# Resume interrupted crawl
+docker run -e DATABASE_URL="..." fda-crawler resume <session-id>
+
+# Check crawl status
+docker run -e DATABASE_URL="..." fda-crawler status <session-id>
+
+# Export PDFs from database
+docker run -e DATABASE_URL="..." -v ./pdfs:/app/exported_pdfs fda-crawler export-pdfs
+
+# Show configuration
+docker run -e DATABASE_URL="..." fda-crawler config
+
+# Interactive shell for debugging
+docker run -e DATABASE_URL="..." -it fda-crawler shell
+```
+
+### Idempotent Behavior
+
+✅ **The crawler is designed to be idempotent:**
+- Documents already in database are skipped
+- PDFs already downloaded are not re-downloaded
+- Resume functionality allows continuing interrupted crawls
+- Running multiple times will only process new/updated documents
+
+### Production Deployment
+
+For production use:
+1. Use external PostgreSQL database
+2. Set appropriate resource limits in docker-compose.yml
+3. Configure monitoring and logging
+4. Use restart policies for reliability
+
+```bash
+# Production example
+docker run -d \
+  --name fda-crawler \
+  --restart unless-stopped \
+  -e DATABASE_URL="postgresql+asyncpg://user:pass@prod-db:5432/fda" \
+  -e MAX_CONCURRENCY=2 \
+  -e RATE_LIMIT=0.5 \
+  fda-crawler
+```
+
 ## Development
 
 ### Project Structure

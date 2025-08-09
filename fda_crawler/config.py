@@ -11,8 +11,8 @@ class Settings(BaseSettings):
     
     # Database
     database_url: str = Field(
-        default="postgresql+asyncpg://sanatanupmanyu:ksDq2jazKmxxzv.VxXbkwR6Uxz@localhost:5432/quriousri_db",
-        env="DATABASE_URL"
+        env="DATABASE_URL",
+        description="PostgreSQL database connection URL"
     )
     schema_name: str = Field(default="source", env="SCHEMA_NAME")
     

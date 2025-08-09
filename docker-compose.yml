@@ -1,0 +1,84 @@
+version: '3.8'
+
+services:
+  fda-crawler:
+    build: .
+    container_name: fda-guidance-harvester
+    environment:
+      # Database Configuration (REQUIRED)
+      DATABASE_URL=postgresql://sanatanupmanyu:ksDq2jazKmxxzv.VxXbkwR6Uxz@host.docker.internal:5432/quriousri_db
+      
+      # Optional Configuration (with defaults)
+      SCHEMA_NAME: source
+      MAX_CONCURRENCY: 4
+      RATE_LIMIT: 1.0
+      
+      # Browser Configuration
+      BROWSER_HEADLESS: "true"
+      BROWSER_TIMEOUT: 30000
+      BROWSER_WAIT_FOR_TABLE: 10000
+      
+      # HTTP Configuration
+      CONNECT_TIMEOUT: 30
+      READ_TIMEOUT: 60
+      MAX_RETRIES: 3
+      RETRY_DELAY: 1.0
+      
+      # Export Configuration (optional)
+      PDF_ROOT: /app/exported_pdfs
+      
+      # User Agent
+      USER_AGENT: "FDA-Crawler/1.0"
+    
+    volumes:
+      # Mount volume for PDF exports (optional)
+      - ./exported_pdfs:/app/exported_pdfs
+    
+    # Uncomment to run specific commands
+    # command: ["test", "--limit", "10"]
+    # command: ["resume", "session-id-here"]
+    # command: ["export-pdfs", "--output-dir", "/app/exported_pdfs"]
+    
+    restart: unless-stopped
+    
+    # Resource limits (optional)
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+
+# Example with external PostgreSQL
+# services:
+#   fda-crawler:
+#     build: .
+#     environment:
+#       DATABASE_URL: postgresql+asyncpg://myuser:mypassword@postgres.example.com:5432/fda_db
+#     command: ["crawl"]
+
+# Example with local PostgreSQL (not recommended for production)
+# services:
+#   postgres:
+#     image: postgres:15
+#     environment:
+#       POSTGRES_DB: fda_guidance
+#       POSTGRES_USER: fda_user
+#       POSTGRES_PASSWORD: fda_password
+#     volumes:
+#       - postgres_data:/var/lib/postgresql/data
+#     ports:
+#       - "5432:5432"
+#   
+#   fda-crawler:
+#     build: .
+#     depends_on:
+#       - postgres
+#     environment:
+#       DATABASE_URL: postgresql+asyncpg://fda_user:fda_password@postgres:5432/fda_guidance
+#     command: ["crawl"]
+# 
+# volumes:
+#   postgres_data:
