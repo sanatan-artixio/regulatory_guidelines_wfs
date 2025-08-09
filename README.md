@@ -254,10 +254,28 @@ docker run -e DATABASE_URL="..." -it fda-crawler shell
 ### Idempotent Behavior
 
 ✅ **The crawler is designed to be idempotent:**
-- Documents already in database are skipped
-- PDFs already downloaded are not re-downloaded
-- Resume functionality allows continuing interrupted crawls
-- Running multiple times will only process new/updated documents
+- **Database schema**: Tables created with `IF NOT EXISTS` - no data loss on restart
+- **Documents**: Already processed documents are automatically skipped
+- **PDFs**: Already downloaded PDFs are not re-downloaded
+- **Resume functionality**: Interrupted crawls can be continued
+- **Safe restarts**: Running multiple times only processes new/updated content
+
+⚠️ **Important**: The migration script (`migrate.sql`) is now safe and idempotent. It will NOT drop existing tables or data when containers restart.
+
+### Database Management
+
+**Normal Operation (Idempotent):**
+```bash
+# Safe to run multiple times - preserves existing data
+docker-compose up -d
+```
+
+**Fresh Database Setup (Data Loss!):**
+```bash
+# ONLY use this for initial setup or complete reset
+export DATABASE_URL="your_database_url_here"
+./init-db.sh  # This will DROP all existing data!
+```
 
 ### Production Deployment
 

@@ -54,13 +54,13 @@ class FDACrawler:
             await self.client.aclose()
             
     async def init_database(self):
-        """Initialize database schema"""
+        """Initialize database schema (idempotent)"""
         async with self.engine.begin() as conn:
             # Create schema if not exists
             await conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {settings.schema_name}"))
-            # Create tables
+            # Create tables only if they don't exist (idempotent)
             await conn.run_sync(Base.metadata.create_all)
-        logger.info("Database initialized")
+        logger.info("Database schema checked/initialized")
         
     async def create_crawl_session(self, test_limit: Optional[int] = None) -> str:
         """Create a new crawl session and return session ID"""
