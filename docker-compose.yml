@@ -6,7 +6,7 @@ services:
     container_name: fda-guidance-harvester
     environment:
       # Database Configuration (REQUIRED)
-      DATABASE_URL=postgresql://sanatanupmanyu:ksDq2jazKmxxzv.VxXbkwR6Uxz@host.docker.internal:5432/quriousri_db
+      DATABASE_URL: postgresql+asyncpg://sanatanupmanyu:ksDq2jazKmxxzv.VxXbkwR6Uxz@host.docker.internal:5432/quriousri_db
       
       # Optional Configuration (with defaults)
       SCHEMA_NAME: source

@@ -18,8 +18,7 @@ COPY requirements.txt .
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Install Playwright browsers
-RUN playwright install chromium
+# Install Playwright system dependencies (requires root)
 RUN playwright install-deps chromium
 
 # Copy application code
@@ -37,7 +36,12 @@ RUN chmod +x docker-entrypoint.sh
 # Create non-root user for security
 RUN useradd --create-home --shell /bin/bash crawler
 RUN chown -R crawler:crawler /app
+
+# Switch to non-root user
 USER crawler
+
+# Install Playwright browsers as the crawler user
+RUN playwright install chromium
 
 # Set environment variables
 ENV PYTHONPATH=/app
