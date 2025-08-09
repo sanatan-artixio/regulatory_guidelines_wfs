@@ -7,6 +7,12 @@ CREATE SCHEMA IF NOT EXISTS source;
 -- Set search path
 SET search_path TO source;
 
+-- Drop existing tables if they exist (for clean migration)
+-- Note: This will delete all existing data!
+DROP TABLE IF EXISTS document_attachments CASCADE;
+DROP TABLE IF EXISTS documents CASCADE;
+DROP TABLE IF EXISTS crawl_sessions CASCADE;
+
 -- Create crawl_sessions table
 CREATE TABLE IF NOT EXISTS crawl_sessions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
