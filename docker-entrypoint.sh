@@ -61,37 +61,14 @@ done
 echo "🔧 Checking database schema..."
 python -c "
 import asyncio
-from fda_crawler.config import settings
-from sqlalchemy.ext.asyncio import create_async_engine
-from sqlalchemy import text
+from fda_crawler.crawler import FDACrawler
 
-async def check_and_init_schema():
-    engine = create_async_engine(settings.database_url)
-    
-    async with engine.begin() as conn:
-        # Check if tables exist
-        result = await conn.execute(text(
-            \"SELECT COUNT(*) FROM information_schema.tables 
-             WHERE table_schema = '{}' AND table_name IN ('crawl_sessions', 'documents', 'document_attachments')\"
-            .format(settings.schema_name)
-        ))
-        table_count = result.scalar()
-        
-        if table_count == 3:
-            print('✅ Database schema already exists, skipping initialization')
-        else:
-            print('🔧 Initializing database schema for the first time...')
-            # Create schema if not exists
-            await conn.execute(text(f'CREATE SCHEMA IF NOT EXISTS {settings.schema_name}'))
-            
-            # Only run the parts of migration that create tables (not drop them)
-            from fda_crawler.models import Base
-            await conn.run_sync(Base.metadata.create_all)
-            print('✅ Database schema initialized')
-    
-    await engine.dispose()
+async def init_schema():
+    async with FDACrawler() as crawler:
+        await crawler.init_database()
+        print('✅ Database schema checked/initialized')
 
-asyncio.run(check_and_init_schema())
+asyncio.run(init_schema())
 "
 
 # Execute the requested command
