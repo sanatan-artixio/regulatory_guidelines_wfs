@@ -190,7 +190,40 @@ class FDACrawler:
                 '--disable-extensions',
                 '--disable-plugins',
                 '--disable-default-apps',
-                '--disable-background-networking'
+                '--disable-background-networking',
+                # Additional cloud-optimized settings
+                '--disable-ipc-flooding-protection',
+                '--disable-software-rasterizer',
+                '--disable-background-media-processing',
+                '--disable-component-update',
+                '--disable-domain-reliability',
+                '--disable-sync',
+                '--metrics-recording-only',
+                '--no-crash-upload',
+                '--disable-logging',
+                '--disable-permissions-api',
+                '--disable-notifications',
+                '--disable-speech-api',
+                '--disable-file-system',
+                '--disable-presentation-api',
+                '--disable-remote-fonts',
+                '--disable-shared-workers',
+                '--disable-storage-reset',
+                '--disable-tabbed-options',
+                '--disable-threaded-animation',
+                '--disable-threaded-scrolling',
+                '--disable-in-process-stack-traces',
+                '--disable-histogram-customizer',
+                '--disable-gl-extensions',
+                '--disable-composited-antialiasing',
+                '--disable-canvas-aa',
+                '--disable-3d-apis',
+                '--disable-accelerated-2d-canvas',
+                '--disable-accelerated-jpeg-decoding',
+                '--disable-accelerated-mjpeg-decode',
+                '--disable-app-list-dismiss-on-blur',
+                '--disable-accelerated-video-decode',
+                '--num-raster-threads=1'
             ]
             
             try:
@@ -242,7 +275,7 @@ class FDACrawler:
                 logger.info("📄 Navigating to FDA guidance documents page...")
                 await page.goto(
                     "https://www.fda.gov/regulatory-information/search-fda-guidance-documents",
-                    timeout=90000,  # Increased to 90 seconds
+                    timeout=120000,  # Increased to 120 seconds for cloud environments
                     wait_until="networkidle"  # Wait for network to be completely idle
                 )
                 logger.info("✅ Page loaded successfully")
@@ -258,7 +291,7 @@ class FDACrawler:
                         () => document.body.innerText.includes('entries') || 
                              document.body.innerText.includes('Showing') ||
                              document.querySelectorAll('table').length > 0
-                    """, timeout=30000)
+                    """, timeout=60000)
                     logger.info("✅ Page content indicators found")
                 except Exception as e:
                     logger.warning(f"⚠️ Content indicators not found: {e}")
@@ -268,7 +301,7 @@ class FDACrawler:
                     await page.wait_for_function("""
                         () => window.jQuery && window.jQuery.fn.DataTable && 
                              (window.jQuery('table').DataTable || document.querySelectorAll('table').length > 0)
-                    """, timeout=20000)
+                    """, timeout=45000)
                     logger.info("✅ DataTables initialization detected")
                 except Exception as e:
                     logger.warning(f"⚠️ DataTables not detected: {e}")

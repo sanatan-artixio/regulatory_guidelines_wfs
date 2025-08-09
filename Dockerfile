@@ -10,6 +10,8 @@ RUN apt-get update && apt-get install -y \
     wget \
     gnupg2 \
     software-properties-common \
+    htop \
+    procps \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better Docker layer caching
