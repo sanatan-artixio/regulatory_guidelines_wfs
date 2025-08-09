@@ -111,16 +111,57 @@ class FDACrawler:
         documents = []
         
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=settings.browser_headless)
+            # Launch browser with cloud-friendly settings
+            browser_args = [
+                '--no-sandbox',
+                '--disable-setuid-sandbox', 
+                '--disable-dev-shm-usage',
+                '--disable-gpu',
+                '--disable-web-security',
+                '--disable-features=VizDisplayCompositor',
+                '--single-process'
+            ]
+            
+            browser = await p.chromium.launch(
+                headless=settings.browser_headless,
+                args=browser_args
+            )
             page = await browser.new_page()
+            
+            # Set a reasonable viewport
+            await page.set_viewport_size({"width": 1280, "height": 720})
             
             try:
                 logger.info("Loading FDA guidance listing page with browser...")
-                await page.goto("https://www.fda.gov/regulatory-information/search-fda-guidance-documents")
+                await page.goto(
+                    "https://www.fda.gov/regulatory-information/search-fda-guidance-documents",
+                    timeout=60000,  # 60 second timeout
+                    wait_until="networkidle"  # Wait for network to be idle
+                )
                 
-                # Wait for the DataTable to load
+                # Wait for the DataTable to load - try multiple selectors
                 logger.info("Waiting for DataTable to load...")
-                await page.wait_for_selector('table.dataTable', timeout=settings.browser_wait_for_table)
+                table_selectors = [
+                    'table.dataTable',
+                    'table[id*="DataTable"]', 
+                    'table.display',
+                    '.dataTables_wrapper table',
+                    'table tbody tr'
+                ]
+                
+                table_found = False
+                for selector in table_selectors:
+                    try:
+                        await page.wait_for_selector(selector, timeout=15000)
+                        logger.info(f"Found table with selector: {selector}")
+                        table_found = True
+                        break
+                    except Exception as e:
+                        logger.debug(f"Selector {selector} not found: {e}")
+                        continue
+                
+                if not table_found:
+                    raise Exception("No DataTable found with any selector")
                 
                 # Wait a bit more for data to populate
                 await page.wait_for_timeout(3000)
