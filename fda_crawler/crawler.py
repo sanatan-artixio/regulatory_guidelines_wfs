@@ -111,7 +111,7 @@ class FDACrawler:
         documents = []
         
         async with async_playwright() as p:
-            # Launch browser with cloud-friendly settings
+            # Enhanced browser args for cloud environments
             browser_args = [
                 '--no-sandbox',
                 '--disable-setuid-sandbox', 
@@ -119,49 +119,115 @@ class FDACrawler:
                 '--disable-gpu',
                 '--disable-web-security',
                 '--disable-features=VizDisplayCompositor',
-                '--single-process'
+                '--single-process',
+                '--disable-background-timer-throttling',
+                '--disable-backgrounding-occluded-windows',
+                '--disable-renderer-backgrounding',
+                '--disable-field-trial-config',
+                '--memory-pressure-off',
+                '--max_old_space_size=4096',
+                '--no-first-run',
+                '--no-default-browser-check',
+                '--disable-extensions',
+                '--disable-plugins',
+                '--disable-default-apps',
+                '--disable-background-networking'
             ]
             
-            browser = await p.chromium.launch(
-                headless=settings.browser_headless,
-                args=browser_args
-            )
-            page = await browser.new_page()
-            
-            # Set a reasonable viewport
-            await page.set_viewport_size({"width": 1280, "height": 720})
-            
             try:
-                logger.info("Loading FDA guidance listing page with browser...")
-                await page.goto(
-                    "https://www.fda.gov/regulatory-information/search-fda-guidance-documents",
-                    timeout=60000,  # 60 second timeout
-                    wait_until="networkidle"  # Wait for network to be idle
+                logger.info("🚀 Launching browser with enhanced cloud settings...")
+                browser = await p.chromium.launch(
+                    headless=settings.browser_headless,
+                    args=browser_args,
+                    slow_mo=100  # Add slight delay between actions for stability
                 )
                 
-                # Wait for the DataTable to load - try multiple selectors
-                logger.info("Waiting for DataTable to load...")
+                logger.info("✅ Browser launched successfully")
+                page = await browser.new_page()
+                
+                # Set a reasonable viewport and user agent
+                await page.set_viewport_size({"width": 1280, "height": 720})
+                await page.set_extra_http_headers({
+                    'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                })
+                
+                logger.info("📄 Navigating to FDA guidance documents page...")
+                await page.goto(
+                    "https://www.fda.gov/regulatory-information/search-fda-guidance-documents",
+                    timeout=90000,  # Increased to 90 seconds
+                    wait_until="domcontentloaded"  # Less strict than networkidle
+                )
+                logger.info("✅ Page loaded successfully")
+                
+                # Take a screenshot for debugging
+                try:
+                    screenshot = await page.screenshot()
+                    logger.info(f"📸 Page screenshot captured ({len(screenshot)} bytes)")
+                except Exception as e:
+                    logger.warning(f"Could not capture screenshot: {e}")
+                
+                # Log page content for debugging
+                try:
+                    content = await page.content()
+                    logger.info(f"📝 Page content length: {len(content)} characters")
+                    # Check if DataTable-related content exists
+                    if 'dataTable' in content.lower():
+                        logger.info("✅ DataTable-related content found in page")
+                    else:
+                        logger.warning("⚠️ No DataTable-related content found in page")
+                        
+                    if 'showing' in content.lower() and 'entries' in content.lower():
+                        logger.info("✅ Table pagination text found")
+                    else:
+                        logger.warning("⚠️ No pagination text found")
+                        
+                except Exception as e:
+                    logger.warning(f"Could not analyze page content: {e}")
+                
+                # Wait for the DataTable to load - try multiple selectors with better logging
+                logger.info("🔍 Searching for DataTable elements...")
                 table_selectors = [
+                    'table',  # Start with basic table
                     'table.dataTable',
                     'table[id*="DataTable"]', 
                     'table.display',
                     '.dataTables_wrapper table',
-                    'table tbody tr'
+                    'table tbody tr',
+                    '[role="alert"] table',  # The table is in an alert role
+                    '.table-responsive table'
                 ]
                 
                 table_found = False
-                for selector in table_selectors:
+                found_selector = None
+                for i, selector in enumerate(table_selectors, 1):
                     try:
-                        await page.wait_for_selector(selector, timeout=15000)
-                        logger.info(f"Found table with selector: {selector}")
+                        logger.info(f"🔍 Trying selector {i}/{len(table_selectors)}: {selector}")
+                        await page.wait_for_selector(selector, timeout=20000)  # Increased timeout
+                        logger.info(f"✅ Found table with selector: {selector}")
                         table_found = True
+                        found_selector = selector
                         break
                     except Exception as e:
-                        logger.debug(f"Selector {selector} not found: {e}")
+                        logger.debug(f"❌ Selector {selector} failed: {str(e)[:100]}")
                         continue
                 
                 if not table_found:
-                    raise Exception("No DataTable found with any selector")
+                    # Try to get all available selectors for debugging
+                    try:
+                        all_elements = await page.query_selector_all('*')
+                        logger.error(f"🔍 Found {len(all_elements)} total elements on page")
+                        
+                        # Check for common table-related elements
+                        table_elements = await page.query_selector_all('table')
+                        logger.error(f"📊 Found {len(table_elements)} table elements")
+                        
+                        div_elements = await page.query_selector_all('div[class*="table"]')
+                        logger.error(f"📊 Found {len(div_elements)} div elements with 'table' in class")
+                        
+                    except Exception as e:
+                        logger.error(f"Could not analyze page elements: {e}")
+                    
+                    raise Exception("No DataTable found with any selector - see debug info above")
                 
                 # Wait a bit more for data to populate
                 await page.wait_for_timeout(3000)

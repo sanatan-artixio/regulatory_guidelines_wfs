@@ -274,5 +274,31 @@ def export_pdfs(
     asyncio.run(_export())
 
 
+@app.command()
+def test_browser():
+    """Test browser automation in isolation to debug cloud deployment issues"""
+    async def _test_browser():
+        console.print("🧪 Testing browser automation...")
+        
+        try:
+            async with FDACrawler() as crawler:
+                # Test just the browser automation part
+                documents = await crawler.get_listing_data_with_browser(limit=1)
+                
+                if documents:
+                    console.print(f"✅ Browser automation successful! Found {len(documents)} documents")
+                    for doc in documents[:3]:  # Show first 3
+                        console.print(f"  📄 {doc.get('title', 'No title')}")
+                else:
+                    console.print("⚠️ Browser automation returned no documents")
+                    
+        except Exception as e:
+            console.print(f"❌ Browser automation failed: {e}", style="red")
+            import traceback
+            console.print(f"📋 Full traceback:\n{traceback.format_exc()}", style="dim")
+    
+    asyncio.run(_test_browser())
+
+
 if __name__ == "__main__":
     app()
