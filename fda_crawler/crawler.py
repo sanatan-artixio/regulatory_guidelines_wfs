@@ -536,8 +536,12 @@ class FDACrawler:
                     'select[name*="length"]',
                     'select[name*="pageSize"]', 
                     '.dataTables_length select',
-                    'select.form-control'
+                    'select.form-control',
+                    'select[name="example_length"]',  # Common DataTables naming
+                    '.dataTables_wrapper select'
                 ]
+                
+                pagination_changed = False
                 
                 for selector in page_size_selectors:
                     try:
@@ -545,17 +549,62 @@ class FDACrawler:
                             EC.element_to_be_clickable((By.CSS_SELECTOR, selector))
                         )
                         
-                        # Try to select "All" or a large number
+                        logger.info(f"📋 Found pagination selector: {selector}")
+                        
+                        # Get all available options and log them
                         options = select_element.find_elements(By.TAG_NAME, "option")
+                        option_texts = [opt.text.strip() for opt in options]
+                        option_values = [opt.get_attribute("value") for opt in options]
+                        logger.info(f"📊 Available page size options: {option_texts} (values: {option_values})")
+                        
+                        # Try to select "All" first, then fall back to largest number
+                        selected = False
+                        
+                        # Priority 1: Look for "All" option (case-insensitive)
                         for option in options:
-                            if option.get_attribute("value") in ["-1", "100", "all", "All"]:
+                            option_text = option.text.strip().lower()
+                            option_value = option.get_attribute("value")
+                            
+                            if option_text == "all" or option_value == "-1":
+                                logger.info(f"🎯 Selecting 'All' option: {option.text}")
+                                driver.execute_script("arguments[0].scrollIntoView(true);", option)
+                                time.sleep(0.5)
                                 option.click()
-                                logger.info(f"✅ Set page size to: {option.text}")
-                                time.sleep(random.uniform(2, 4))
+                                selected = True
+                                pagination_changed = True
                                 break
-                        break
-                    except:
+                        
+                        # Priority 2: If no "All", select the largest number
+                        if not selected:
+                            numeric_options = []
+                            for option in options:
+                                try:
+                                    value = int(option.get_attribute("value"))
+                                    numeric_options.append((value, option))
+                                except (ValueError, TypeError):
+                                    continue
+                            
+                            if numeric_options:
+                                # Sort by value and pick the largest
+                                largest_value, largest_option = max(numeric_options, key=lambda x: x[0])
+                                logger.info(f"📈 Selecting largest option: {largest_option.text} (value: {largest_value})")
+                                driver.execute_script("arguments[0].scrollIntoView(true);", largest_option)
+                                time.sleep(0.5)
+                                largest_option.click()
+                                selected = True
+                                pagination_changed = True
+                        
+                        if selected:
+                            logger.info("✅ Page size changed successfully")
+                            time.sleep(random.uniform(3, 5))  # Wait for table to reload
+                            break
+                            
+                    except Exception as selector_error:
+                        logger.debug(f"Selector {selector} failed: {selector_error}")
                         continue
+                
+                if not pagination_changed:
+                    logger.warning("⚠️ Could not find or change pagination selector - proceeding with default page size")
                         
             except Exception as e:
                 logger.warning(f"⚠️ Could not change page size: {e}")
@@ -941,30 +990,82 @@ class FDACrawler:
                 
                 # Try to change page size to show more results
                 try:
+                    logger.info("🔧 Attempting to increase page size (Playwright)...")
+                    
                     # Look for page size selector (common DataTable pattern)
                     page_size_selectors = [
                         'select[name*="length"]',
                         'select[name*="pageSize"]', 
                         '.dataTables_length select',
-                        '[aria-label*="entries"] select'
+                        '[aria-label*="entries"] select',
+                        'select[name="example_length"]',
+                        '.dataTables_wrapper select'
                     ]
+                    
+                    pagination_changed = False
                     
                     for selector in page_size_selectors:
                         try:
-                            await page.wait_for_selector(selector, timeout=2000)
-                            # Try to select "All" or a large number like 100
-                            await page.select_option(selector, value='-1')  # -1 often means "All"
-                            logger.info("Set DataTable to show all entries")
-                            await page.wait_for_timeout(3000)
-                            break
-                        except:
+                            await page.wait_for_selector(selector, timeout=3000)
+                            logger.info(f"📋 Found pagination selector: {selector}")
+                            
+                            # Get available options
+                            options = await page.query_selector_all(f"{selector} option")
+                            option_values = []
+                            option_texts = []
+                            
+                            for option in options:
+                                value = await option.get_attribute("value")
+                                text = await option.text_content()
+                                option_values.append(value)
+                                option_texts.append(text.strip() if text else "")
+                            
+                            logger.info(f"📊 Available options: {option_texts} (values: {option_values})")
+                            
+                            # Priority 1: Try to select "All" (value -1 or text "All")
                             try:
-                                await page.select_option(selector, value='100')
-                                logger.info("Set DataTable to show 100 entries per page")
-                                await page.wait_for_timeout(3000)
+                                await page.select_option(selector, value='-1')
+                                logger.info("🎯 Selected 'All' entries option")
+                                pagination_changed = True
+                                await page.wait_for_timeout(4000)
                                 break
                             except:
-                                continue
+                                # Try selecting by text "All"
+                                try:
+                                    await page.select_option(selector, label='All')
+                                    logger.info("🎯 Selected 'All' entries option by label")
+                                    pagination_changed = True
+                                    await page.wait_for_timeout(4000)
+                                    break
+                                except:
+                                    pass
+                            
+                            # Priority 2: Select the largest numeric value
+                            numeric_values = []
+                            for value in option_values:
+                                try:
+                                    if value and value != "-1":
+                                        numeric_values.append(int(value))
+                                except (ValueError, TypeError):
+                                    continue
+                            
+                            if numeric_values:
+                                largest_value = str(max(numeric_values))
+                                try:
+                                    await page.select_option(selector, value=largest_value)
+                                    logger.info(f"📈 Selected largest option: {largest_value}")
+                                    pagination_changed = True
+                                    await page.wait_for_timeout(4000)
+                                    break
+                                except:
+                                    continue
+                                    
+                        except Exception as selector_error:
+                            logger.debug(f"Selector {selector} failed: {selector_error}")
+                            continue
+                    
+                    if not pagination_changed:
+                        logger.warning("⚠️ Could not change pagination - proceeding with default page size")
                     
                 except Exception as e:
                     logger.warning(f"Could not change DataTable page size: {e}")
