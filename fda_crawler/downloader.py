@@ -153,17 +153,27 @@ class DocumentProcessor:
                     detail_metadata = {}  # Continue with listing data only
                 
                 # Combine listing data with detail page data
+                import json
+                
+                # Convert regulated products and topics lists to JSON strings for storage
+                regulated_products = detail_metadata.get('regulated_products', [])
+                topics_list = detail_metadata.get('topics', [])
+                
                 combined_metadata = {
                     'title': detail_metadata.get('title') or doc_data.get('title'),
                     'summary': detail_metadata.get('summary'),
                     'issue_date': doc_data.get('issue_date'),
                     'fda_organization': doc_data.get('fda_organization'),
-                    'topic': doc_data.get('topic'),
+                    'topic': doc_data.get('topic'),  # Legacy field - keep for backward compatibility
                     'guidance_status': doc_data.get('guidance_status'),
                     'open_for_comment': doc_data.get('open_for_comment'),
                     'docket_number': detail_metadata.get('docket_number'),
                     'guidance_type': None,  # Not in current data structure
                     'comment_closing_date': None,  # Would need to be extracted
+                    # Enhanced metadata from sidebar
+                    'regulated_products': json.dumps(regulated_products) if regulated_products else None,
+                    'topics': json.dumps(topics_list) if topics_list else None,
+                    'content_current_date': detail_metadata.get('content_date'),
                 }
                 
                 # Create or update document record

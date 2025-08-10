@@ -75,17 +75,27 @@ CREATE TABLE documents (
     summary TEXT,
     issue_date TEXT,
     fda_organization TEXT,
-    topic TEXT,
+    topic TEXT,                         -- Legacy field (kept for backward compatibility)
     guidance_status TEXT,
     open_for_comment BOOLEAN,
     comment_closing_date TEXT,
     docket_number VARCHAR(100),
     guidance_type VARCHAR(100),
     
-    -- Processing metadata
-    processing_status VARCHAR(20) DEFAULT 'pending',
+    -- Enhanced metadata from sidebar
+    regulated_products TEXT,            -- JSON array: ["Biologics", "Medical Devices"]
+    topics TEXT,                        -- JSON array: ["User Fees", "Administrative / Procedural"] 
+    content_current_date VARCHAR(50),   -- Content current as of date
+    
+    -- Processing status
     processed_at TIMESTAMP,
-    error_message TEXT,
+    processing_status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    processing_error TEXT,
+    
+    -- PDF info
+    pdf_path VARCHAR(500),
+    pdf_checksum VARCHAR(64),
+    pdf_size_bytes INTEGER,
     
     -- Timestamps
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),

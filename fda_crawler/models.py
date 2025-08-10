@@ -57,12 +57,17 @@ class Document(Base):
     summary = Column(Text, nullable=True)
     issue_date = Column(Text, nullable=True)              # Increased from String(50) to Text
     fda_organization = Column(Text, nullable=True)        # Increased from String(200) to Text
-    topic = Column(Text, nullable=True)                   # Increased from String(200) to Text
+    topic = Column(Text, nullable=True)                   # Increased from String(200) to Text (legacy field)
     guidance_status = Column(Text, nullable=True)         # Increased from String(100) to Text
     open_for_comment = Column(Boolean, nullable=True)
     comment_closing_date = Column(Text, nullable=True)    # Increased from String(50) to Text
     docket_number = Column(String(100), nullable=True)
     guidance_type = Column(String(100), nullable=True)
+    
+    # Enhanced metadata from sidebar
+    regulated_products = Column(Text, nullable=True)      # JSON array as text: ["Biologics", "Medical Devices"]
+    topics = Column(Text, nullable=True)                  # JSON array as text: ["User Fees", "Administrative / Procedural"]
+    content_current_date = Column(String(50), nullable=True)  # Content current as of date
     
     # Processing status
     processed_at = Column(DateTime, nullable=True)
@@ -82,8 +87,28 @@ class Document(Base):
     crawl_session = relationship("CrawlSession", back_populates="documents")
     attachments = relationship("DocumentAttachment", back_populates="document", cascade="all, delete-orphan")
     
+    def get_regulated_products_list(self) -> List[str]:
+        """Get regulated products as a list"""
+        if self.regulated_products:
+            try:
+                import json
+                return json.loads(self.regulated_products)
+            except (json.JSONDecodeError, TypeError):
+                return []
+        return []
+    
+    def get_topics_list(self) -> List[str]:
+        """Get topics as a list"""
+        if self.topics:
+            try:
+                import json
+                return json.loads(self.topics)
+            except (json.JSONDecodeError, TypeError):
+                return []
+        return []
+    
     def __repr__(self):
-        return f"<Document {self.title[:50]}... ({self.processing_status})>"
+        return f"<Document {self.title[:50] if self.title else 'Unknown'}... ({self.processing_status})>"
 
 
 class DocumentAttachment(Base):

@@ -250,36 +250,113 @@ class DocumentDetailParser:
     def _extract_regulated_products(self, soup: BeautifulSoup) -> List[str]:
         """Extract regulated products from sidebar"""
         products = []
-        headings = soup.find_all(['h2', 'h3'])
+        
+        # Method 1: Look for the specific structure with h2 heading and ul.lcds-metadata-list
+        headings = soup.find_all('h2', class_='lcds-description-list__item-heading')
         for heading in headings:
             if 'regulated product' in heading.get_text().lower():
-                menu = heading.find_next_sibling('menu') or heading.find_next('menu')
-                if menu:
-                    items = menu.find_all('menuitem')
-                    for item in items:
-                        products.append(item.get_text(strip=True))
-                break
+                # Find the associated ul.lcds-metadata-list
+                parent_div = heading.find_parent('div')
+                if parent_div:
+                    metadata_list = parent_div.find('ul', class_='lcds-metadata-list')
+                    if metadata_list:
+                        items = metadata_list.find_all('li', role='menuitem')
+                        for item in items:
+                            product_text = item.get_text(strip=True)
+                            if product_text:
+                                products.append(product_text)
+                        break
+        
+        # Method 2: Fallback - look for any h2/h3 with "regulated product" and associated menu
+        if not products:
+            headings = soup.find_all(['h2', 'h3'])
+            for heading in headings:
+                if 'regulated product' in heading.get_text().lower():
+                    # Find the associated menu or ul
+                    menu = heading.find_next_sibling('menu') or heading.find_next('menu')
+                    if not menu:
+                        menu = heading.find_next_sibling('ul') or heading.find_next('ul')
+                    if menu:
+                        items = menu.find_all(['menuitem', 'li'])
+                        for item in items:
+                            product_text = item.get_text(strip=True)
+                            if product_text:
+                                products.append(product_text)
+                    break
+        
+        logger.info(f"📊 Extracted {len(products)} regulated products: {products}")
         return products
     
     def _extract_detail_topics(self, soup: BeautifulSoup) -> List[str]:
         """Extract topics from sidebar"""
         topics = []
-        headings = soup.find_all(['h2', 'h3'])
+        
+        # Method 1: Look for the specific structure with h2 heading and ul.lcds-metadata-list
+        headings = soup.find_all('h2', class_='lcds-description-list__item-heading')
         for heading in headings:
-            if 'topic' in heading.get_text().lower() and 'regulated' not in heading.get_text().lower():
-                menu = heading.find_next_sibling('menu') or heading.find_next('menu')
-                if menu:
-                    items = menu.find_all('menuitem')
-                    for item in items:
-                        topics.append(item.get_text(strip=True))
-                break
+            heading_text = heading.get_text().lower()
+            if 'topic' in heading_text and 'regulated' not in heading_text:
+                # Find the associated ul.lcds-metadata-list
+                parent_div = heading.find_parent('div')
+                if parent_div:
+                    metadata_list = parent_div.find('ul', class_='lcds-metadata-list')
+                    if metadata_list:
+                        items = metadata_list.find_all('li', role='menuitem')
+                        for item in items:
+                            topic_text = item.get_text(strip=True)
+                            if topic_text:
+                                topics.append(topic_text)
+                        break
+        
+        # Method 2: Fallback - look for any h2/h3 with "topic" and associated menu
+        if not topics:
+            headings = soup.find_all(['h2', 'h3'])
+            for heading in headings:
+                heading_text = heading.get_text().lower()
+                if 'topic' in heading_text and 'regulated' not in heading_text:
+                    # Find the associated menu or ul
+                    menu = heading.find_next_sibling('menu') or heading.find_next('menu')
+                    if not menu:
+                        menu = heading.find_next_sibling('ul') or heading.find_next('ul')
+                    if menu:
+                        items = menu.find_all(['menuitem', 'li'])
+                        for item in items:
+                            topic_text = item.get_text(strip=True)
+                            if topic_text:
+                                topics.append(topic_text)
+                    break
+        
+        logger.info(f"📊 Extracted {len(topics)} topics: {topics}")
         return topics
     
     def _extract_content_date(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract content current date"""
+        # Method 1: Look for the specific "Content current as of" structure
+        headings = soup.find_all('h2', class_='lcds-description-list__item-heading')
+        for heading in headings:
+            if 'content current as of' in heading.get_text().lower():
+                # Find the associated time element
+                parent_div = heading.find_parent('div')
+                if parent_div:
+                    time_elem = parent_div.find('time')
+                    if time_elem:
+                        # Try to get the datetime attribute first, then text content
+                        datetime_attr = time_elem.get('datetime')
+                        if datetime_attr:
+                            # Convert from ISO format to MM/DD/YYYY if needed
+                            try:
+                                from datetime import datetime
+                                dt = datetime.fromisoformat(datetime_attr.replace('Z', '+00:00'))
+                                return dt.strftime('%m/%d/%Y')
+                            except:
+                                pass
+                        return time_elem.get_text(strip=True)
+        
+        # Method 2: Fallback - look for any time elements
         time_elements = soup.find_all('time')
         for time_elem in time_elements:
             return time_elem.get_text(strip=True)
+        
         return None
 
 

@@ -44,12 +44,17 @@ CREATE TABLE IF NOT EXISTS documents (
     summary TEXT,
     issue_date TEXT,                    -- Increased from VARCHAR(50) to TEXT
     fda_organization TEXT,              -- Increased from VARCHAR(200) to TEXT
-    topic TEXT,                         -- Increased from VARCHAR(200) to TEXT
+    topic TEXT,                         -- Increased from VARCHAR(200) to TEXT (legacy field)
     guidance_status TEXT,               -- Increased from VARCHAR(100) to TEXT
     open_for_comment BOOLEAN,
     comment_closing_date TEXT,          -- Increased from VARCHAR(50) to TEXT
     docket_number VARCHAR(100),
     guidance_type VARCHAR(100),
+    
+    -- Enhanced metadata from sidebar
+    regulated_products TEXT,            -- JSON array: ["Biologics", "Medical Devices"]
+    topics TEXT,                        -- JSON array: ["User Fees", "Administrative / Procedural"] 
+    content_current_date VARCHAR(50),   -- Content current as of date
     
     -- Processing status
     processed_at TIMESTAMP,
@@ -102,6 +107,11 @@ CREATE INDEX IF NOT EXISTS idx_attachments_document_id ON document_attachments(d
 CREATE INDEX IF NOT EXISTS idx_attachments_status ON document_attachments(download_status);
 CREATE INDEX IF NOT EXISTS idx_sessions_status ON crawl_sessions(status);
 
+-- Indexes for new sidebar metadata columns
+CREATE INDEX IF NOT EXISTS idx_documents_regulated_products ON documents USING GIN ((regulated_products::jsonb));
+CREATE INDEX IF NOT EXISTS idx_documents_topics ON documents USING GIN ((topics::jsonb));
+CREATE INDEX IF NOT EXISTS idx_documents_content_date ON documents(content_current_date);
+
 -- Create function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -120,5 +130,11 @@ CREATE TRIGGER update_documents_updated_at
 
 COMMENT ON SCHEMA source IS 'FDA Guidance Documents Harvester - Source data schema';
 COMMENT ON TABLE crawl_sessions IS 'Track crawl sessions for resume functionality';
-COMMENT ON TABLE documents IS 'FDA guidance document metadata';
+COMMENT ON TABLE documents IS 'FDA guidance document metadata with enhanced sidebar data';
 COMMENT ON TABLE document_attachments IS 'Document attachments (PDFs and other files)';
+
+-- Comments on new columns
+COMMENT ON COLUMN documents.topic IS 'Legacy single topic field (kept for backward compatibility)';
+COMMENT ON COLUMN documents.regulated_products IS 'JSON array of regulated products from sidebar (e.g., ["Biologics", "Medical Devices"])';
+COMMENT ON COLUMN documents.topics IS 'JSON array of topics from sidebar (e.g., ["User Fees", "Administrative / Procedural"])';
+COMMENT ON COLUMN documents.content_current_date IS 'Content current as of date from sidebar';
