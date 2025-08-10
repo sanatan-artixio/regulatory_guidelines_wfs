@@ -1378,6 +1378,11 @@ class FDACrawler:
         try:
             await asyncio.sleep(1.0 / settings.rate_limit)  # Rate limiting
             
+            # Convert relative URLs to absolute URLs
+            if pdf_url.startswith('/'):
+                pdf_url = f"https://www.fda.gov{pdf_url}"
+                logger.info(f"📄 Converted relative URL to absolute: {pdf_url}")
+            
             response = await self.client.get(pdf_url)
             response.raise_for_status()
             
