@@ -10,7 +10,7 @@ echo "========================================"
 # Check if DATABASE_URL is set
 if [ -z "$DATABASE_URL" ]; then
     echo "❌ ERROR: DATABASE_URL environment variable is required"
-    echo "   Example: DATABASE_URL='postgresql://user:pass@localhost:5432/dbname'"
+    echo "   Example: DATABASE_URL='postgresql://sanatanupmanyu:ksDq2jazKmxxzv.VxXbkwR6Uxz@host.docker.internal:5432/quriousri_db'"
     exit 1
 fi
 

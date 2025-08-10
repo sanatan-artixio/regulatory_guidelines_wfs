@@ -29,6 +29,12 @@ class FDACrawler:
         if self._refactored_crawler:
             await self._refactored_crawler.__aexit__(exc_type, exc_val, exc_tb)
     
+    async def init_database(self):
+        """Initialize database schema (delegated to refactored crawler)"""
+        if not self._refactored_crawler:
+            raise RuntimeError("Crawler not initialized. Use async context manager.")
+        return await self._refactored_crawler.init_database()
+    
     async def crawl(self, test_limit: Optional[int] = None, resume_session_id: Optional[str] = None) -> str:
         """Main crawl method (delegated to refactored crawler)"""
         if not self._refactored_crawler:

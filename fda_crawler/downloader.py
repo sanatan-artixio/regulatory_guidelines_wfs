@@ -139,11 +139,23 @@ class DocumentProcessor:
                 )
                 existing_doc = result.scalar_one_or_none()
                 
-                if existing_doc and existing_doc.processing_status == "completed":
+                # Check if document needs sidebar data update
+                needs_sidebar_update = (existing_doc and 
+                                      existing_doc.processing_status == "completed" and
+                                      existing_doc.regulated_products is None and 
+                                      existing_doc.topics is None and 
+                                      existing_doc.content_current_date is None)
+                
+                if existing_doc and existing_doc.processing_status == "completed" and not needs_sidebar_update:
                     logger.info(f"Document already processed: {url}")
                     return True
-                
-                logger.info(f"Processing document: {doc_data.get('title', url)}")
+                    
+                if needs_sidebar_update:
+                    logger.info(f"Updating document with sidebar data: {url}")
+                elif existing_doc:
+                    logger.info(f"Re-processing document: {doc_data.get('title', url)}")
+                else:
+                    logger.info(f"Processing new document: {doc_data.get('title', url)}")
                 
                 # Get additional metadata from detail page
                 detail_metadata = await self.parse_document_page(url)

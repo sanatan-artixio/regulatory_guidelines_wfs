@@ -109,6 +109,10 @@ class FDACrawlerRefactored:
             await self.client.aclose()
         await self.db_manager.close()
     
+    async def init_database(self):
+        """Initialize database schema (delegated to database manager)"""
+        await self.db_manager.init_database()
+    
     async def get_listing_data(self, limit: Optional[int] = None) -> List[Dict[str, Any]]:
         """Get document listing data using the best available method"""
         documents = []
