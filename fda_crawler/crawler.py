@@ -119,15 +119,15 @@ class FDACrawler:
             
             self.session_id = str(session.id)
         
-        # Get document URLs from FDA JSON API (faster than scraping)
-        document_urls = await self._get_document_urls_from_api()
+        # Get documents with metadata from FDA JSON API (faster than scraping)
+        documents_with_metadata = await self._get_documents_from_api()
         
         if test_limit:
-            document_urls = document_urls[:test_limit]
+            documents_with_metadata = documents_with_metadata[:test_limit]
             logger.info(f"Limited to {test_limit} documents for testing")
         
         # Process documents
-        await self._process_documents(document_urls, self.session_id)
+        await self._process_documents_with_metadata(documents_with_metadata, self.session_id)
         
         # Mark session complete
         async with self.async_session() as db_session:
@@ -139,42 +139,139 @@ class FDACrawler:
         logger.info(f"Crawl completed. Session ID: {self.session_id}")
         return self.session_id
     
-    async def _get_document_urls_from_api(self) -> List[str]:
-        """Get document URLs from FDA JSON API"""
+    async def _get_documents_from_api(self) -> List[Dict[str, Any]]:
+        """Get document data with metadata from FDA JSON API"""
         try:
             response = await self.client.get("https://www.fda.gov/files/api/datatables/static/search-for-guidance.json")
             response.raise_for_status()
             data = response.json()
             
-            urls = []
+            documents = []
             for item in data:
+                # Extract URL from title HTML
                 title_html = item.get('title', '')
                 soup = BeautifulSoup(title_html, 'html.parser')
                 link = soup.find('a')
                 if link:
                     url_path = link.get('href', '')
                     full_url = urljoin('https://www.fda.gov', url_path) if url_path else ''
-                    if full_url:
-                        urls.append(full_url)
+                    title_text = link.get_text(strip=True)
+                    
+                    if full_url and title_text:
+                        # Extract metadata from JSON
+                        doc_data = {
+                            'document_url': full_url,
+                            'title': title_text,
+                            'issue_date': item.get('field_issue_datetime', ''),
+                            'fda_organization': item.get('field_issuing_office_taxonomy', '') or item.get('field_center', ''),
+                            'topic': item.get('topics-product', '') or item.get('term_node_tid', ''),
+                            'guidance_status': item.get('field_final_guidance_1', ''),
+                            'open_for_comment': 'yes' in item.get('open-comment', '').lower(),
+                            'comment_closing_date': item.get('field_comment_close_date', ''),
+                            'guidance_type': item.get('field_communication_type', ''),
+                            'regulated_products': json.dumps([item.get('field_regulated_product_field', '')]) if item.get('field_regulated_product_field') else '',
+                            'topics': json.dumps([item.get('field_health_topics', '')]) if item.get('field_health_topics') else '',
+                            'content_current_date': '',
+                            'summary': '',  # Will be filled from HTML if available
+                            'pdf_url': ''   # Will be filled from HTML if available
+                        }
+                        
+                        # Extract docket number from HTML
+                        docket_html = item.get('field_docket_number', '')
+                        if docket_html:
+                            docket_soup = BeautifulSoup(docket_html, 'html.parser')
+                            docket_link = docket_soup.find('a')
+                            if docket_link:
+                                doc_data['docket_number'] = docket_link.get_text(strip=True)
+                        
+                        documents.append(doc_data)
             
-            logger.info(f"Found {len(urls)} documents from FDA API")
-            return urls
+            logger.info(f"Found {len(documents)} documents with metadata from FDA API")
+            return documents
             
         except Exception as e:
-            logger.warning(f"Failed to get URLs from API: {e}. Using fallback documents.")
-            return [doc['document_url'] for doc in self.FALLBACK_DOCUMENTS]
+            logger.warning(f"Failed to get documents from API: {e}. Using fallback documents.")
+            # Convert fallback to same format
+            fallback_docs = []
+            for doc in self.FALLBACK_DOCUMENTS:
+                fallback_doc = {
+                    'document_url': doc['document_url'],
+                    'title': doc['title'],
+                    'issue_date': doc.get('issue_date', ''),
+                    'fda_organization': doc.get('fda_organization', ''),
+                    'topic': doc.get('topic', ''),
+                    'guidance_status': doc.get('guidance_status', ''),
+                    'open_for_comment': doc.get('open_for_comment', False),
+                    'comment_closing_date': '',
+                    'docket_number': '',
+                    'guidance_type': '',
+                    'regulated_products': '',
+                    'topics': '',
+                    'content_current_date': '',
+                    'summary': '',
+                    'pdf_url': doc.get('pdf_url', '')
+                }
+                fallback_docs.append(fallback_doc)
+            return fallback_docs
     
-    async def _process_documents(self, document_urls: List[str], session_id: str):
-        """Process documents with concurrency control"""
+    async def _process_documents_with_metadata(self, documents: List[Dict[str, Any]], session_id: str):
+        """Process documents with metadata and concurrency control"""
         semaphore = asyncio.Semaphore(settings.max_concurrency)
         
-        async def process_single(url: str):
+        async def process_single(doc_data: Dict[str, Any]):
             async with semaphore:
-                await self._process_document(url, session_id)
+                await self._process_document_with_metadata(doc_data, session_id)
                 await asyncio.sleep(1.0 / settings.rate_limit)  # Rate limiting
         
-        tasks = [process_single(url) for url in document_urls]
+        tasks = [process_single(doc) for doc in documents]
         await asyncio.gather(*tasks, return_exceptions=True)
+    
+    async def _process_document_with_metadata(self, doc_data: Dict[str, Any], session_id: str):
+        """Process a single document with pre-extracted metadata from JSON API"""
+        document_url = doc_data['document_url']
+        try:
+            # Check if document already exists
+            async with self.async_session() as db_session:
+                result = await db_session.execute(
+                    select(Document).where(Document.document_url == document_url)
+                )
+                existing_doc = result.scalar_one_or_none()
+                if existing_doc:
+                    logger.info(f"Document already exists: {document_url}")
+                    return
+            
+            # Fetch document page only for PDF links and additional content
+            try:
+                response = await self.client.get(document_url)
+                response.raise_for_status()
+                
+                # Parse HTML for PDF links and summary (but keep JSON metadata)
+                html_data = self._parse_document_page(response.text, document_url)
+                
+                # Merge: Use JSON metadata as primary, HTML as supplement
+                final_doc_data = doc_data.copy()  # Start with rich JSON metadata
+                if html_data.get('pdf_url'):
+                    final_doc_data['pdf_url'] = html_data['pdf_url']
+                if html_data.get('summary'):
+                    final_doc_data['summary'] = html_data['summary']
+                
+            except Exception as e:
+                logger.warning(f"Could not fetch HTML for {document_url}: {e}")
+                final_doc_data = doc_data  # Use JSON metadata only
+            
+            # Download PDF if available
+            pdf_data = None
+            if final_doc_data.get('pdf_url'):
+                pdf_data = await self._download_pdf(final_doc_data['pdf_url'])
+            
+            # Save to database with rich metadata
+            await self._save_document(final_doc_data, pdf_data, session_id)
+            
+            logger.info(f"Processed with metadata: {final_doc_data.get('title', 'Unknown')[:50]}...")
+            
+        except Exception as e:
+            logger.error(f"Error processing {document_url}: {e}")
+            await self._update_session_error_count(session_id)
     
     async def _process_document(self, document_url: str, session_id: str):
         """Process a single document: fetch, parse, download PDF, save to DB"""

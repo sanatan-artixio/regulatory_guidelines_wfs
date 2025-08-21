@@ -1,4 +1,4 @@
-# Essential dependencies only
+# Essential dependencies for FDA Crawler
 httpx>=0.25.0
 beautifulsoup4>=4.12.0
 lxml>=4.9.0
@@ -12,3 +12,7 @@ playwright>=1.40.0
 undetected-chromedriver>=3.5.0
 selenium>=4.15.0
 rich>=13.0.0
+
+# Additional dependencies for data processing pipeline
+pdfplumber>=0.10.0
+openai>=1.6.0

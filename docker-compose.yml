@@ -35,3 +35,55 @@ services:
         reservations:
           memory: 256M
           cpus: '0.25'
+
+  data-processor:
+    build:
+      context: .
+      dockerfile: Dockerfile.data_cleaning
+    container_name: fda-data-processor
+    environment:
+      # Database Configuration (shared with crawler)
+      DATABASE_URL: postgresql+asyncpg://sanatanupmanyu:ksDq2jazKmxxzv.VxXbkwR6Uxz@host.docker.internal:5432/quriousri_db
+      SOURCE_SCHEMA: source
+      PROCESSED_SCHEMA: processed
+      
+      # OpenAI API Configuration (REQUIRED)
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_MODEL: gpt-4-1106-preview
+      OPENAI_MAX_TOKENS: 4000
+      OPENAI_TEMPERATURE: 0.1
+      
+      # Processing Configuration
+      MAX_CONCURRENCY: 4
+      BATCH_SIZE: 10
+      RATE_LIMIT_REQUESTS_PER_MINUTE: 50
+      
+      # PDF Processing
+      MAX_PDF_PAGES: 100
+      MAX_TEXT_LENGTH: 50000
+      
+      # Retry Configuration
+      MAX_RETRIES: 3
+      RETRY_DELAY: 1.0
+      
+      # Logging
+      LOG_LEVEL: INFO
+    
+    # Uncomment to run specific commands
+    # command: ["python", "-m", "data_cleaning.cli", "test"]
+    # command: ["python", "-m", "data_cleaning.cli", "process", "--limit", "5"]
+    
+    restart: "no"  # Manual execution
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+    
+    depends_on:
+      - fda-crawler
