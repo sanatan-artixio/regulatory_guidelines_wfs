@@ -55,23 +55,23 @@ class Document(Base):
     document_url = Column(String(500), nullable=False, unique=True)
     title = Column(Text, nullable=True)
     summary = Column(Text, nullable=True)
-    issue_date = Column(Text, nullable=True)              # Increased from String(50) to Text
-    fda_organization = Column(Text, nullable=True)        # Increased from String(200) to Text
-    topic = Column(Text, nullable=True)                   # Increased from String(200) to Text (legacy field)
-    guidance_status = Column(Text, nullable=True)         # Increased from String(100) to Text
+    issue_date = Column(Text, nullable=True)
+    fda_organization = Column(Text, nullable=True)
+    topic = Column(Text, nullable=True)
+    guidance_status = Column(Text, nullable=True)
     open_for_comment = Column(Boolean, nullable=True)
-    comment_closing_date = Column(Text, nullable=True)    # Increased from String(50) to Text
+    comment_closing_date = Column(Text, nullable=True)
     docket_number = Column(String(100), nullable=True)
     guidance_type = Column(String(100), nullable=True)
     
     # Enhanced metadata from sidebar
-    regulated_products = Column(Text, nullable=True)      # JSON array as text: ["Biologics", "Medical Devices"]
-    topics = Column(Text, nullable=True)                  # JSON array as text: ["User Fees", "Administrative / Procedural"]
-    content_current_date = Column(String(50), nullable=True)  # Content current as of date
+    regulated_products = Column(Text, nullable=True)      # JSON array as text
+    topics = Column(Text, nullable=True)                  # JSON array as text
+    content_current_date = Column(String(50), nullable=True)
     
     # Processing status
     processed_at = Column(DateTime, nullable=True)
-    processing_status = Column(String(20), nullable=False, default="pending")  # pending, processing, completed, failed
+    processing_status = Column(String(20), nullable=False, default="pending")
     processing_error = Column(Text, nullable=True)
     
     # PDF info
@@ -122,16 +122,16 @@ class DocumentAttachment(Base):
     # Attachment metadata
     filename = Column(String(255), nullable=False)
     source_url = Column(String(500), nullable=False)
-    file_type = Column(String(20), nullable=True)  # pdf, doc, etc.
+    file_type = Column(String(20), nullable=True)
     
     # Download info
-    local_path = Column(String(500), nullable=True)  # Keep for backward compatibility
+    local_path = Column(String(500), nullable=True)
     pdf_content = Column(LargeBinary, nullable=True)  # Store PDF binary data directly
     checksum = Column(String(64), nullable=True)  # SHA256
     size_bytes = Column(Integer, nullable=True)
     
     # Status
-    download_status = Column(String(20), nullable=False, default="pending")  # pending, downloading, completed, failed
+    download_status = Column(String(20), nullable=False, default="pending")
     download_error = Column(Text, nullable=True)
     downloaded_at = Column(DateTime, nullable=True)
     
